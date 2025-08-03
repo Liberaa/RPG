@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Epic Adventure Game</title>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ─────────────── GAME WINDOW ─────────────── -->
+  <div id="game-area">
+
+    <!-- ── HUD (top-left) ── -->
+    <div id="hud">
+      <div class="avatar"></div>
+
+      <div class="stats">
+        <!-- HP -->
+        <div class="bar hp"><span></span>
+          <em id="hp-label"></em>
+        </div>
+
+        <!-- XP -->
+        <div class="bar xp">
+          <span></span>
+          <em id="xp-label"></em>
+        </div>
+
+        <!-- Lv -->
+        <div id="lvl" class="lvl">Lv&nbsp;1</div>
+      </div>
+    </div>
+
+    <!-- ── Hamburger (top-right) ── -->
+    <button id="hamburger"><span></span><span></span><span></span></button>
+    <aside id="side-panel">
+      <h3>⚙️ Settings</h3>
+      <div class="settings-content">
+        <label>
+          <input type="checkbox" id="sound-toggle" checked> Sound Effects
+        </label>
+        <label>
+          <input type="checkbox" id="music-toggle" checked> Music
+        </label>
+        <label>
+          <input type="checkbox" id="autosave-toggle" checked> Auto-save
+        </label>
+        <hr>
+        <button id="save-btn">💾 Save Game</button>
+        <button id="load-btn">📁 Load Game</button>
+        <hr>
+        <div class="debug-info">
+          <small>Debug Mode: ON</small>
+          <small>Press K for XP/Gold</small>
+          <small>ESC to pause</small>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ── Character & name ── -->
+    <div id="character-wrapper">
+      <div id="character"></div>
+      <div id="char-name">Artemis</div>
+    </div>
+
+    <!-- ── Bag (bottom-right) ── -->
+    <button id="bag-btn">🎒</button>
+    <div id="bag-window" class="panel">
+      <div class="bag-header">
+        <strong>Inventory</strong>
+        <span class="gold-display">💰 <span id="gold">0</span></span>
+      </div>
+      <div id="bag-grid"></div>
+    </div>
+
+    <!-- ── Talents (just above bag) ── -->
+    <button id="talent-btn">✨</button>
+    <div id="talent-window" class="panel">
+      <h3>Talents</h3>
+      <div class="talent-points">Points Available: <span id="talent-points">0</span></div>
+      <ul id="talent-list"></ul>
+    </div>
+
+  </div><!-- /game-area -->
+
+  <!-- ─────────────── BATTLE SCENE ─────────────── -->
+  <div id="battle-scene" class="hidden">
+    <div id="damage-popup" class="damage-popup hidden">-30</div>
+    <div id="hero-damage-popup" class="damage-popup hidden">-15</div>
+    
+    <div class="battle-portraits">
+      <div class="portrait hero">
+        <img id="battle-hero-img" src="assets/player.png">
+        <div class="stats">
+          <div class="hp-bar"><div class="fill" id="battle-hero-hp-bar"></div></div>
+          <div class="hp-text" id="battle-hero-hp">HP</div>
+        </div>
+      </div>
+
+      <div class="portrait enemy">
+        <img id="battle-enemy-img" src="">
+        <div class="stats">
+          <div class="hp-bar"><div class="fill" id="battle-enemy-hp-bar"></div></div>
+          <div class="hp-text" id="battle-enemy-hp">HP</div>
+        </div>
+      </div>
+    </div>
+    <div class="battle-sprites">
+      <img id="battle-hero-sprite" class="hero-sprite" src="assets/player.png">
+      <img id="battle-enemy-sprite" class="enemy-sprite" src="">
+    </div>
+
+    <div class="battle-options">
+      <button onclick="attackEnemy()">⚔️ Attack</button>
+      <button onclick="fleeBattle()">🏃 Flee</button>
+      <button disabled>🎯 Skills</button>
+      <button disabled>✨ Spells</button>
+      <button disabled>🧪 Items</button>
+    </div>
+  </div>
+
+  <!-- ─────────────── LOADING SCREEN ─────────────── -->
+  <div id="loading-screen" class="loading-screen" style="display: none;">
+    <div class="loading-content">
+      <div class="loading-spinner"></div>
+      <p>Loading adventures...</p>
+    </div>
+  </div>
+
+  <!-- ─────────────── ERROR DISPLAY ─────────────── -->
+  <div id="error-message" class="error-message" style="display: none;"></div>
+
+  <!-- Main JavaScript Entry Point - Changed from script.js -->
+  <script type="module" src="main.js"></script>
+</body>
+</html>

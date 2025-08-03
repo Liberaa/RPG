@@ -1,0 +1,907 @@
+/* ────────────────────────────────────────────────
+   0. CSS Variables & Theme
+────────────────────────────────────────────────── */
+:root {
+  /* Colors */
+  --color-primary: #3ae;
+  --color-danger: #e33;
+  --color-success: #3f3;
+  --color-gold: #ffd700;
+  --color-crit: #ff6b6b;
+  
+  /* UI Colors */
+  --bg-primary: #111;
+  --bg-secondary: #222;
+  --bg-panel: #333;
+  --border-color: #555;
+  --text-primary: #fff;
+  --text-secondary: #aaa;
+  
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  
+  /* Animations */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+}
+
+/* ────────────────────────────────────────────────
+   1. Reset & Base
+────────────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg-primary);
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+/* ────────────────────────────────────────────────
+   2. Game Window
+────────────────────────────────────────────────── */
+#game-area {
+  width: 950px;
+  height: 550px;
+  border: 3px solid var(--text-primary);
+  background: #444;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ────────────────────────────────────────────────
+   3. Character & Movement
+────────────────────────────────────────────────── */
+#character-wrapper {
+  width: 165px;
+  height: 265px;
+  position: absolute;
+  bottom: 0;
+  will-change: transform;
+  transition: transform 50ms linear;
+}
+
+#character {
+  width: 100%;
+  height: 100%;
+  background: url("/assets/player.png") center/contain no-repeat;
+}
+
+#character.face-left {
+  transform: scaleX(-1);
+  transform-origin: center;
+}
+
+#char-name {
+  position: absolute;
+  bottom: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-shadow: 0 0 4px #000;
+  pointer-events: none;
+  z-index: 6;
+}
+
+/* ────────────────────────────────────────────────
+   4. HUD (Enhanced)
+────────────────────────────────────────────────── */
+#hud {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  gap: 0.75rem;
+  z-index: 10;
+}
+
+#hud .avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #777 url("/assets/player.png") center/cover;
+  border: 2px solid var(--border-color);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+#hud .stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 120px;
+  position: relative;
+}
+
+/* Bar styles */
+#hud .bar {
+  height: 14px;
+  border: 1px solid #333;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--bg-primary);
+  position: relative;
+}
+
+#hud .bar span {
+  display: block;
+  height: 100%;
+  transition: width var(--transition-normal);
+}
+
+/* HP bar */
+#hud .bar.hp span {
+  background: linear-gradient(to right, #c33, var(--color-danger));
+}
+
+#hp-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 10px;
+  color: var(--text-primary);
+  line-height: 14px;
+  pointer-events: none;
+  font-weight: 600;
+  text-shadow: 0 0 2px #000;
+}
+
+/* XP bar */
+#hud .xp span {
+  background: linear-gradient(to right, #39e, var(--color-primary));
+}
+
+/* Level badge */
+#hud .lvl {
+  position: absolute;
+  right: -25px;
+  top: 0;
+  background: var(--bg-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  border: 1px solid var(--color-gold);
+  color: var(--color-gold);
+  font-weight: 600;
+}
+
+/* ────────────────────────────────────────────────
+   5. UI Panels & Windows
+────────────────────────────────────────────────── */
+.panel {
+  position: absolute;
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  padding: var(--spacing-md);
+  color: var(--text-primary);
+  display: none;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  overflow: auto;
+  z-index: 12;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+.panel.open {
+  display: flex;
+}
+
+.panel h3 {
+  margin: 0.1rem 0 0.6rem;
+  font-size: 1.15rem;
+  color: var(--text-primary);
+}
+
+/* ────────────────────────────────────────────────
+   6. Hamburger Menu
+────────────────────────────────────────────────── */
+#hamburger {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  width: 38px;
+  height: 32px;
+  background: none;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: pointer;
+  z-index: 11;
+  padding: 0;
+}
+
+#hamburger span {
+  height: 4px;
+  background: var(--text-primary);
+  border-radius: 2px;
+  transition: var(--transition-fast);
+}
+
+#hamburger:hover span {
+  background: var(--color-primary);
+}
+
+#side-panel {
+  position: absolute;
+  top: 0;
+  right: -250px;
+  width: 230px;
+  height: 100%;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: var(--spacing-md);
+  transition: right var(--transition-normal);
+  z-index: 10;
+  border-left: 2px solid var(--border-color);
+}
+
+#side-panel.open {
+  right: 0;
+}
+
+#side-panel h3 {
+  margin-bottom: var(--spacing-md);
+}
+
+.settings-content label {
+  display: block;
+  margin: var(--spacing-sm) 0;
+  cursor: pointer;
+}
+
+.settings-content hr {
+  border: 1px solid var(--border-color);
+  margin: var(--spacing-md) 0;
+}
+
+.settings-content button {
+  width: 100%;
+  padding: var(--spacing-sm);
+  margin: var(--spacing-xs) 0;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.settings-content button:hover {
+  background: #444;
+  border-color: var(--color-primary);
+}
+
+.debug-info {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+}
+
+.debug-info small {
+  display: block;
+  color: var(--text-secondary);
+  margin: 2px 0;
+}
+
+/* ────────────────────────────────────────────────
+   7. Inventory/Bag
+────────────────────────────────────────────────── */
+#bag-btn {
+  position: absolute;
+  right: 15px;
+  bottom: 15px;
+  width: 60px;
+  height: 60px;
+  font-size: 1.9rem;
+  border: none;
+  border-radius: 12px;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  cursor: pointer;
+  z-index: 11;
+  transition: var(--transition-fast);
+}
+
+#bag-btn:hover {
+  background: #444;
+  transform: scale(1.05);
+}
+
+#bag-window {
+  right: 90px;
+  bottom: 90px;
+  width: 300px;
+  height: 340px;
+}
+
+.bag-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.gold-display {
+  color: var(--color-gold);
+  font-weight: 600;
+}
+
+#bag-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 42px);
+  gap: 6px;
+  margin-bottom: var(--spacing-md);
+}
+
+.slot {
+  width: 42px;
+  height: 42px;
+  border: 1px solid #666;
+  border-radius: 4px;
+  background: var(--bg-primary);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.2rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.slot.empty {
+  opacity: 0.35;
+}
+
+.slot:hover:not(.empty) {
+  border-color: var(--color-primary);
+  transform: scale(1.1);
+}
+
+/* ────────────────────────────────────────────────
+   8. Talents (WoW Style)
+────────────────────────────────────────────────── */
+#talent-btn {
+  position: absolute;
+  right: 85px;
+  bottom: 15px;
+  width: 60px;
+  height: 60px;
+  font-size: 1.8rem;
+  border: none;
+  border-radius: 12px;
+  background: #555;
+  color: var(--text-primary);
+  cursor: pointer;
+  z-index: 11;
+  transition: var(--transition-fast);
+}
+
+#talent-btn:hover {
+  background: #666;
+  transform: scale(1.05);
+}
+
+#talent-window {
+  position: absolute;
+  right: 160px;
+  bottom: 90px;
+  width: 400px;
+  height: 500px;
+  background: linear-gradient(to bottom, #2a1a0a, #1a0f05);
+  border: 3px solid #8B6914;
+  border-radius: 8px;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 0 20px rgba(0,0,0,0.8);
+}
+
+#talent-window.open {
+  display: flex;
+}
+
+.talent-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: rgba(0,0,0,0.4);
+  border-bottom: 1px solid #8B6914;
+}
+
+.talent-header h3 {
+  margin: 0;
+  color: #FFD700;
+  font-size: 1.2rem;
+}
+
+.talent-points {
+  color: #4CAF50;
+  font-weight: bold;
+}
+
+.talent-tabs {
+  display: flex;
+  background: rgba(0,0,0,0.3);
+  border-bottom: 1px solid #8B6914;
+}
+
+.talent-tab {
+  flex: 1;
+  padding: 0.75rem;
+  background: none;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+  border-bottom: 2px solid transparent;
+}
+
+.talent-tab:hover {
+  color: #FFD700;
+  background: rgba(255,215,0,0.1);
+}
+
+.talent-tab.active {
+  color: #FFD700;
+  border-bottom-color: #FFD700;
+  background: rgba(255,215,0,0.2);
+}
+
+.talent-tree-container {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+  background: rgba(0,0,0,0.2);
+}
+
+.talent-tree {
+  display: grid;
+  grid-template-columns: repeat(6, 60px);
+  grid-template-rows: repeat(4, 60px);
+  gap: 10px;
+  justify-content: center;
+}
+
+.talent-slot {
+  width: 60px;
+  height: 60px;
+  background: #1a1a1a;
+  border: 2px solid #444;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+}
+
+.talent-slot.empty {
+  cursor: default;
+  opacity: 0.3;
+}
+
+.talent-slot.available {
+  border-color: #4CAF50;
+  box-shadow: 0 0 10px rgba(76,175,80,0.3);
+}
+
+.talent-slot.available:hover {
+  border-color: #66BB6A;
+  box-shadow: 0 0 15px rgba(76,175,80,0.5);
+  transform: scale(1.05);
+}
+
+.talent-slot.locked {
+  opacity: 0.5;
+  border-color: #666;
+}
+
+.talent-slot.maxed {
+  border-color: #FFD700;
+  box-shadow: 0 0 10px rgba(255,215,0,0.3);
+}
+
+.talent-icon {
+  font-size: 1.8rem;
+  margin-bottom: 2px;
+}
+
+.talent-rank {
+  font-size: 0.75rem;
+  color: #FFD700;
+  font-weight: bold;
+}
+
+.talent-tooltip {
+  background: #1a1a1a;
+  border: 1px solid #8B6914;
+  border-radius: 4px;
+  padding: 1rem;
+  margin-top: 1rem;
+  color: #fff;
+}
+
+.talent-tooltip.hidden {
+  display: none;
+}
+
+.tooltip-title {
+  color: #FFD700;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.tooltip-rank {
+  color: #4CAF50;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.tooltip-description {
+  color: #ddd;
+  margin-bottom: 0.5rem;
+}
+
+.tooltip-requires {
+  color: #ff6b6b;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.tooltip-cost {
+  color: #4CAF50;
+  font-size: 0.85rem;
+}
+
+.tooltip-maxed {
+  color: #FFD700;
+  font-size: 0.85rem;
+}
+
+/* ────────────────────────────────────────────────
+   9. NPCs
+────────────────────────────────────────────────── */
+#npc-container {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.npc {
+  position: absolute;
+  bottom: 0;
+  text-align: center;
+  width: 250px;
+}
+
+.npc img {
+  width: 100%;
+  image-rendering: pixelated;
+}
+
+.npc .name {
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  text-shadow: 0 0 3px black;
+  font-weight: 600;
+}
+
+.npc.enemy img {
+  filter: hue-rotate(0deg);
+}
+
+.npc.friendly img {
+  filter: hue-rotate(120deg) brightness(1.1);
+}
+
+/* ────────────────────────────────────────────────
+   10. Battle Scene (Enhanced)
+────────────────────────────────────────────────── */
+#battle-scene {
+  width: 950px;
+  height: 550px;
+  background: linear-gradient(to bottom, #2a2a4e, #16213e);
+  display: none;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 2rem;
+  border: 3px solid var(--text-primary);
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 50;
+}
+
+#battle-scene.visible {
+  display: flex !important;
+}
+
+/* Make sure images are visible */
+#battle-scene img {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.battle-portraits {
+  display: flex;
+  justify-content: space-between;
+  animation: fadeIn 0.3s ease;
+}
+
+.portrait {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: var(--text-primary);
+}
+
+.portrait img {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  background: var(--bg-panel);
+  border: 2px solid #999;
+  border-radius: 50%;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+.portrait .stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.hp-bar {
+  width: 120px;
+  height: 16px;
+  background: var(--bg-secondary);
+  border: 1px solid #666;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.hp-bar .fill {
+  height: 100%;
+  background: linear-gradient(to right, #2f2, var(--color-success));
+  transition: width var(--transition-normal);
+}
+
+.portrait.enemy .hp-bar .fill {
+  background: linear-gradient(to right, #f22, var(--color-danger));
+}
+
+.hp-text {
+  font-size: 0.85rem;
+  text-shadow: 0 0 3px black;
+  font-weight: 600;
+}
+
+/* Battle sprites - ensure they're visible */
+.battle-sprites {
+  position: relative;
+  flex-grow: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 2rem;
+  min-height: 200px;
+}
+
+.hero-sprite, .enemy-sprite {
+  height: 250px;
+  max-height: 40vh;
+  width: auto;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+  object-fit: contain;
+}
+
+.hero-sprite {
+  transform: scaleX(1);
+}
+
+.enemy-sprite {
+  transform: scaleX(-1);
+}
+
+/* Attack animations */
+.hero-sprite.attack {
+  animation: hero-strike 0.25s ease;
+}
+
+.enemy-sprite.attack {
+  animation: enemy-strike 0.25s ease;
+}
+
+@keyframes hero-strike {
+  0% { transform: translateX(0); }
+  50% { transform: translateX(30px); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes enemy-strike {
+  0% { transform: scaleX(-1) translateX(0); }
+  50% { transform: scaleX(-1) translateX(-30px); }
+  100% { transform: scaleX(-1) translateX(0); }
+}
+
+/* Battle options */
+.battle-options {
+  display: flex;
+  gap: var(--spacing-sm);
+  animation: slideUp 0.3s ease;
+}
+
+.battle-options button {
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  background: var(--bg-panel);
+  border: 2px solid var(--border-color);
+  color: var(--text-primary);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: var(--transition-fast);
+  font-weight: 600;
+}
+
+.battle-options button:hover:not(:disabled) {
+  background: #444;
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+}
+
+.battle-options button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Damage popups */
+.damage-popup {
+  position: absolute;
+  font-size: 1.8rem;
+  font-weight: bold;
+  text-shadow: 0 0 4px black;
+  animation: float-up 0.8s ease-out forwards;
+  pointer-events: none;
+  z-index: 99;
+}
+
+.damage-popup {
+  left: 75%;
+  bottom: 280px;
+  color: var(--text-primary);
+}
+
+.damage-popup.critical {
+  color: var(--color-crit);
+  font-size: 2.2rem;
+}
+
+#hero-damage-popup {
+  left: 20%;
+  bottom: 280px;
+  color: var(--color-danger);
+}
+
+@keyframes float-up {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-20px) scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-40px) scale(0.8);
+  }
+}
+
+/* ────────────────────────────────────────────────
+   11. Loading & Error Screens
+────────────────────────────────────────────────── */
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-primary);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+.loading-content {
+  text-align: center;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto var(--spacing-md);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.error-message {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--bg-secondary);
+  border: 2px solid var(--color-danger);
+  padding: var(--spacing-lg);
+  border-radius: 8px;
+  color: var(--color-danger);
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+/* ────────────────────────────────────────────────
+   12. Utility Animations
+────────────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+/* Critical hit effect */
+.critical-hit {
+  animation: criticalFlash 0.3s ease;
+}
+
+@keyframes criticalFlash {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(2) saturate(2); }
+}
