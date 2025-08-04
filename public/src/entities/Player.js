@@ -31,7 +31,7 @@ export default class Player {
     // Inventory
     this.inventory = {
       items: [],
-      maxSlots: 24,
+      maxSlots: 25,
       equipment: {
         weapon: null,
         armor: null,
@@ -41,7 +41,8 @@ export default class Player {
     
     // Talents
     this.talents = {};
-    this.talentPoints = 0;
+    this.talentPoints = 3; // Start with 3 talent points for testing
+    this.talentBonuses = {}; // Store talent bonuses
     
     // Quests
     this.quests = {
@@ -61,6 +62,11 @@ export default class Player {
 
   // ─── HEALTH & MANA ───────────────────────────
   takeDamage(amount) {
+    // Apply damage reduction from talents
+    if (this.talentBonuses && this.talentBonuses.damageReduction) {
+      amount = Math.floor(amount * (1 - this.talentBonuses.damageReduction));
+    }
+    
     const actualDamage = Math.max(0, amount - this.getDefense());
     this.stats.hp = Math.max(0, this.stats.hp - actualDamage);
     
@@ -170,13 +176,25 @@ export default class Player {
   calculateDamage() {
     let damage = this.getAttack();
     
-    // Check for critical hit
-    if (Math.random() < this.getCritChance()) {
+    // Apply weapon damage bonus from talents
+    if (this.talentBonuses && this.talentBonuses.weaponDamage) {
+      damage *= (1 + this.talentBonuses.weaponDamage);
+    }
+    
+    // Check for critical hit (including talent bonus)
+    const critChance = this.getCritChance();
+    if (Math.random() < critChance) {
       damage *= this.stats.critDamage;
       return { damage: Math.floor(damage), isCrit: true };
     }
     
-    return { damage, isCrit: false };
+    // Check for double strike
+    if (this.talentBonuses && this.talentBonuses.doubleStrike && Math.random() < this.talentBonuses.doubleStrike) {
+      damage *= 2;
+      console.log('Double Strike activated!');
+    }
+    
+    return { damage: Math.floor(damage), isCrit: false };
   }
 
   // ─── INVENTORY MANAGEMENT ────────────────────

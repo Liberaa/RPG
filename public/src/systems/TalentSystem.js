@@ -121,6 +121,14 @@ export default class TalentSystem {
     
     this.selectedTree = 'combat';
     this.setupUI();
+    
+    // Make the handleTalentClick function globally accessible for testing
+    window.testTalentClick = (talentId) => {
+      const talent = this.findTalent(talentId);
+      if (talent) {
+        this.handleTalentClick({ currentTarget: { dataset: { talentId } } });
+      }
+    };
   }
 
   setupUI() {
@@ -158,6 +166,77 @@ export default class TalentSystem {
     });
 
     this.render();
+    
+    // Set up click handler ONCE after initial render
+    setTimeout(() => {
+      this.setupClickHandler();
+    }, 100);
+  }
+  
+  setupClickHandler() {
+    const treeElement = document.getElementById('talent-tree');
+    if (!treeElement) return;
+    
+    // Remove any existing click handler
+    treeElement.onclick = null;
+    
+    // Add new click handler
+    treeElement.onclick = (e) => {
+      // Find the talent slot
+      let target = e.target;
+      while (target && !target.classList.contains('talent-slot')) {
+        target = target.parentElement;
+        if (target === treeElement) break;
+      }
+      
+      if (target && target.classList.contains('talent-slot') && !target.classList.contains('empty')) {
+        const talentId = target.dataset.talentId;
+        console.log('Clicked talent slot:', talentId);
+        
+        const talent = this.findTalent(talentId);
+        if (!talent) {
+          console.log('Talent not found');
+          return;
+        }
+        
+        // Check if can learn
+        if (this.game.player.talentPoints <= 0) {
+          console.log('No talent points');
+          return;
+        }
+        
+        const currentRank = this.game.player.talents[talentId] || 0;
+        if (currentRank >= talent.maxRank) {
+          console.log('Talent already maxed');
+          return;
+        }
+        
+        // Check requirements
+        for (const req of talent.requires) {
+          const reqRank = this.game.player.talents[req] || 0;
+          if (reqRank === 0) {
+            console.log('Missing requirement:', req);
+            return;
+          }
+        }
+        
+        // Learn the talent!
+        console.log('Learning talent:', talent.name);
+        this.game.player.talents[talentId] = currentRank + 1;
+        this.game.player.talentPoints--;
+        
+        // Apply effects and update
+        this.applyTalentEffects();
+        this.render();
+        document.getElementById('talent-points').textContent = this.game.player.talentPoints;
+        this.game.updateHUD();
+        
+        // Re-setup click handler after render
+        setTimeout(() => {
+          this.setupClickHandler();
+        }, 100);
+      }
+    };
   }
 
   render() {
@@ -202,10 +281,9 @@ export default class TalentSystem {
       tab.classList.toggle('active', tab.dataset.tree === this.selectedTree);
     });
 
-    // Add click handlers
+    // Add mouseover for tooltips only
     const slots = treeElement.querySelectorAll('.talent-slot:not(.empty)');
     slots.forEach(slot => {
-      slot.addEventListener('click', (e) => this.handleTalentClick(e));
       slot.addEventListener('mouseenter', (e) => this.showTooltip(e));
       slot.addEventListener('mouseleave', () => this.hideTooltip());
     });
@@ -213,17 +291,26 @@ export default class TalentSystem {
 
   canLearnTalent(talent) {
     // Check if player has points
-    if (this.game.player.talentPoints <= 0) return false;
+    if (this.game.player.talentPoints <= 0) {
+      console.log('No talent points available');
+      return false;
+    }
     
     // Check if already maxed
     const currentRank = this.game.player.talents[talent.id] || 0;
-    if (currentRank >= talent.maxRank) return false;
+    if (currentRank >= talent.maxRank) {
+      console.log(`${talent.id} is already maxed`);
+      return false;
+    }
     
     // Check requirements
     for (const req of talent.requires) {
       const reqRank = this.game.player.talents[req] || 0;
       const reqTalent = this.findTalent(req);
-      if (!reqTalent || reqRank < reqTalent.maxRank) return false;
+      if (!reqTalent || reqRank < reqTalent.maxRank) {
+        console.log(`Missing requirement: ${req}`);
+        return false;
+      }
     }
     
     return true;
@@ -238,13 +325,30 @@ export default class TalentSystem {
   }
 
   handleTalentClick(e) {
+    console.log('Talent clicked!');
+    
     const talentId = e.currentTarget.dataset.talentId;
     const talent = this.findTalent(talentId);
     
-    if (!talent || !this.canLearnTalent(talent)) return;
+    if (!talent) {
+      console.log('Talent not found:', talentId);
+      return;
+    }
+    
+    console.log('Talent:', talent.name, 'Points available:', this.game.player.talentPoints);
+    
+    if (!this.canLearnTalent(talent)) {
+      console.log('Cannot learn this talent');
+      return;
+    }
     
     // Learn the talent
-    this.game.player.addTalent(talentId);
+    const currentRank = this.game.player.talents[talentId] || 0;
+    this.game.player.talents[talentId] = currentRank + 1;
+    this.game.player.talentPoints--;
+    
+    console.log(`Learned ${talent.name} rank ${currentRank + 1}/${talent.maxRank}`);
+    console.log('Remaining points:', this.game.player.talentPoints);
     
     // Apply effects
     this.applyTalentEffects();
@@ -252,6 +356,9 @@ export default class TalentSystem {
     // Update UI
     this.render();
     document.getElementById('talent-points').textContent = this.game.player.talentPoints;
+    
+    // Update the main HUD to show new stats
+    this.game.updateHUD();
   }
 
   showTooltip(e) {
@@ -287,8 +394,53 @@ export default class TalentSystem {
   }
 
   applyTalentEffects() {
-    // This would apply all talent effects to the player
-    // For now, just log
-    console.log('Applying talent effects...');
+    // Reset player stats to base values
+    const player = this.game.player;
+    const baseStats = {
+      attack: 20,
+      defense: 10,
+      critChance: 0.1,
+      maxHp: 200,
+      maxMp: 50
+    };
+    
+    // Initialize bonus tracking
+    let bonuses = {
+      attackSpeed: 0,
+      critChance: 0,
+      weaponDamage: 0,
+      doubleStrike: 0,
+      damageReduction: 0,
+      bonusHealth: 0,
+      bonusMana: 0,
+      spellPower: 0
+    };
+    
+    // Apply all talent effects
+    for (const [talentId, rank] of Object.entries(player.talents)) {
+      const talent = this.findTalent(talentId);
+      if (!talent || rank === 0) continue;
+      
+      const effects = talent.effect(rank);
+      for (const [stat, value] of Object.entries(effects)) {
+        bonuses[stat] = (bonuses[stat] || 0) + value;
+      }
+    }
+    
+    // Apply bonuses to player stats
+    player.stats.attack = baseStats.attack * (1 + (bonuses.weaponDamage || 0));
+    player.stats.defense = baseStats.defense * (1 - (bonuses.damageReduction || 0));
+    player.stats.critChance = baseStats.critChance + (bonuses.critChance || 0);
+    player.stats.maxHp = baseStats.maxHp + (bonuses.bonusHealth || 0);
+    player.stats.maxMp = baseStats.maxMp + (bonuses.bonusMana || 0);
+    
+    // Store other bonuses for later use
+    player.talentBonuses = bonuses;
+    
+    // Update HUD to reflect new stats
+    this.game.updateHUD();
+    
+    console.log('Applied talent effects:', bonuses);
+    console.log('New player stats:', player.stats);
   }
 }

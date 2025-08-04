@@ -51,9 +51,14 @@
         <button id="save-btn">💾 Save Game</button>
         <button id="load-btn">📁 Load Game</button>
         <hr>
+        <div class="player-stats">
+          <h4>Character Stats</h4>
+          <div id="stats-display"></div>
+        </div>
+        <hr>
         <div class="debug-info">
           <small>Debug Mode: ON</small>
-          <small>Press K for XP/Gold</small>
+          <small>Press K for XP/Gold/Talent</small>
           <small>ESC to pause</small>
         </div>
       </div>
@@ -80,13 +85,38 @@
     <div id="talent-window" class="panel">
       <h3>Talents</h3>
       <div class="talent-points">Points Available: <span id="talent-points">0</span></div>
-      <ul id="talent-list"></ul>
+      <div class="simple-talents">
+        <div class="talent-item">
+          <span>⚔️</span>
+          <div>
+            <strong>Attack Boost</strong>
+            <div>+5 Attack per point</div>
+            <button onclick="game.spendTalentPoint('attack')">Learn</button>
+          </div>
+        </div>
+        <div class="talent-item">
+          <span>❤️</span>
+          <div>
+            <strong>Health Boost</strong>
+            <div>+20 HP per point</div>
+            <button onclick="game.spendTalentPoint('health')">Learn</button>
+          </div>
+        </div>
+        <div class="talent-item">
+          <span>💥</span>
+          <div>
+            <strong>Critical Boost</strong>
+            <div>+5% Crit per point</div>
+            <button onclick="game.spendTalentPoint('crit')">Learn</button>
+          </div>
+        </div>
+      </div>
     </div>
 
   </div><!-- /game-area -->
 
   <!-- ─────────────── BATTLE SCENE ─────────────── -->
-  <div id="battle-scene" class="hidden">
+  <div id="battle-scene">
     <div id="damage-popup" class="damage-popup hidden">-30</div>
     <div id="hero-damage-popup" class="damage-popup hidden">-15</div>
     
@@ -107,6 +137,7 @@
         </div>
       </div>
     </div>
+
     <div class="battle-sprites">
       <img id="battle-hero-sprite" class="hero-sprite" src="assets/player.png">
       <img id="battle-enemy-sprite" class="enemy-sprite" src="">
