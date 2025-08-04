@@ -1,9 +1,9 @@
-// src/systems/MovementSystem.js - Handles all player movement and collision
+// src/systems/MovementSystem.js - Fixed movement with zone integration
 export default class MovementSystem {
   constructor(game) {
     this.game = game;
     this.speed = 480;
-    this.spriteWidth = 65;
+    this.spriteWidth = 165;
     this.areaWidth = 950;
     
     // Movement state
@@ -20,14 +20,19 @@ export default class MovementSystem {
 
   setupControls() {
     document.addEventListener('keydown', (e) => {
+      // Don't move during dialogue or battles
+      if (this.game.state.inBattle || this.game.npcSystem?.currentDialogue) {
+        return;
+      }
+      
       const k = e.key.toLowerCase();
       if (k === 'a' || k === 'arrowleft') {
         this.leftHeld = true;
-        this.sprite.classList.add('face-left');
+        this.sprite?.classList.add('face-left');
       }
       if (k === 'd' || k === 'arrowright') {
         this.rightHeld = true;
-        this.sprite.classList.remove('face-left');
+        this.sprite?.classList.remove('face-left');
       }
     });
 
@@ -39,8 +44,12 @@ export default class MovementSystem {
   }
 
   update(deltaTime) {
-    // Don't move during battles or cutscenes
-    if (this.game.state.inBattle || this.game.state.paused) return;
+    // Don't move during battles, cutscenes, or dialogue
+    if (this.game.state.inBattle || 
+        this.game.state.paused || 
+        (this.game.npcSystem && this.game.npcSystem.currentDialogue)) {
+      return;
+    }
 
     let newX = this.x;
     
@@ -50,44 +59,64 @@ export default class MovementSystem {
 
     // Check zone boundaries
     if (newX < 0) {
-      if (this.game.state.currentZone > 0) {
-        this.game.changeZone(this.game.state.currentZone - 1);
-        newX = this.areaWidth - this.spriteWidth;
+      // Try to go to previous zone
+      const currentZone = this.game.state.currentZone;
+      if (currentZone > 0) {
+        const success = this.game.changeZone(currentZone - 1);
+        if (success) {
+          newX = this.areaWidth - this.spriteWidth;
+        } else {
+          newX = 0; // Blocked by zone requirements
+        }
       } else {
-        newX = 0;
+        newX = 0; // Already at first zone
       }
     }
     
     if (newX + this.spriteWidth > this.areaWidth) {
-      const maxZone = this.game.getMaxZones() - 1;
-      if (this.game.state.currentZone < maxZone) {
-        this.game.changeZone(this.game.state.currentZone + 1);
-        newX = 0;
+      // Try to go to next zone
+      const currentZone = this.game.state.currentZone;
+      const maxZones = this.game.getMaxZones();
+      if (currentZone < maxZones - 1) {
+        const success = this.game.changeZone(currentZone + 1);
+        if (success) {
+          newX = 0;
+        } else {
+          newX = this.areaWidth - this.spriteWidth; // Blocked by zone requirements
+        }
       } else {
-        newX = this.areaWidth - this.spriteWidth;
+        newX = this.areaWidth - this.spriteWidth; // Already at last zone
       }
     }
 
     this.x = newX;
     
-    // Check collisions with NPCs
-    this.checkNPCCollisions();
+    // Check collisions with NPCs or trigger random encounters
+    this.checkInteractions();
   }
 
-  checkNPCCollisions() {
-    const npcs = this.game.getNPCsInCurrentZone();
+  checkInteractions() {
+    // Check for NPC interactions (if NPC system exists)
+    if (this.game.npcSystem) {
+      const npc = this.game.npcSystem.checkNPCInteraction(this.x, this.game.state.currentZone);
+      if (npc) {
+        // Show interaction hint or auto-interact
+        console.log(`Near NPC: ${npc.name}`);
+      }
+    }
     
-    for (const npc of npcs) {
-      if (npc.defeated) continue;
-      
-      const distance = Math.abs(npc.x - this.x);
-      if (distance < 60) {
-        if (npc.type === 'enemy') {
-          this.game.startBattle(npc);
-          return;
-        } else if (npc.type === 'friendly') {
-          // TODO: Start dialogue
-          this.game.events.emit('npc:interact', npc);
+    // Check for random encounters in dangerous zones
+    if (this.game.zoneSystem) {
+      const currentZone = this.game.zoneSystem.getCurrentZone();
+      if (currentZone && (currentZone.type === 'dangerous' || currentZone.type === 'hostile')) {
+        // Random encounter chance
+        if (Math.random() < 0.005) { // 0.5% chance per frame when moving
+          const enemies = this.game.zoneSystem.getZoneEnemies(this.game.state.currentZone);
+          if (enemies.length > 0) {
+            const randomEnemy = enemies[Math.floor(Math.random() * enemies.length)];
+            console.log(`Random encounter: ${randomEnemy}`);
+            this.game.startBattle(randomEnemy);
+          }
         }
       }
     }
@@ -101,7 +130,7 @@ export default class MovementSystem {
   }
 
   setPosition(x) {
-    this.x = x;
+    this.x = Math.max(0, Math.min(x, this.areaWidth - this.spriteWidth));
   }
 
   getPosition() {
