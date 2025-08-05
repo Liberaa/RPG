@@ -1,11 +1,9 @@
-// src/core/Game.js - Enhanced game controller with quest, zone, and NPC systems
+// src/core/Game.js - Complete working game with all features
 import EventBus from './EventBus.js';
 import GameLoop from './GameLoop.js';
 import Player from '../entities/Player.js';
+import NPC from '../entities/NPC.js';
 import MovementSystem from '../systems/MovementSystem.js';
-import QuestSystem from '../systems/QuestSystem.js';
-import ZoneSystem from '../systems/ZoneSystem.js';
-import NPCSystem from '../systems/NPCSystem.js';
 
 export default class Game {
   constructor(config) {
@@ -18,9 +16,6 @@ export default class Game {
     
     // Systems
     this.systems = {};
-    this.questSystem = null;
-    this.zoneSystem = null;
-    this.npcSystem = null;
     
     // Game state
     this.state = {
@@ -32,6 +27,50 @@ export default class Game {
     
     // Battle system
     this.currentEnemy = null;
+    
+    // Simple quest system
+    this.quests = {
+      'welcome-to-town': { completed: false, active: false },
+      'kill-wolves': { completed: false, active: false, progress: 0, target: 3 }
+    };
+    
+    // Game data
+    this.zones = [
+      { 
+        backgroundImage: 'url(assets/bg.png)', 
+        name: 'Aldenhaven Village',
+        enemies: []
+      },
+      { 
+        backgroundImage: 'url(assets/bg1.png)', 
+        name: 'Greenwood Plains',
+        enemies: ['Wolf', 'Bandit Scout']
+      },
+      { 
+        backgroundImage: 'url(assets/bg2.png)', 
+        name: 'Merchant Crossroads',
+        enemies: ['Bandit', 'Highway Robber']
+      },
+      { 
+        backgroundImage: 'url(assets/bg3.png)', 
+        name: 'Whispering Woods',
+        enemies: ['Forest Spider', 'Wild Boar']
+      },
+      { 
+        backgroundImage: 'url(assets/bg4.png)', 
+        name: 'Dark Forest',
+        enemies: ['Corrupted Wolf', 'Dark Sprite']
+      }
+    ];
+    
+    this.npcs = [
+      new NPC('Elder Marcus', 'friendly', 300, 0, 'assets/friendly.png'),
+      new NPC('Blacksmith', 'friendly', 600, 0, 'assets/friendly.png'),
+      new NPC('Wolf', 'enemy', 200, 1, 'assets/enemy.png', 80),
+      new NPC('Bandit Scout', 'enemy', 500, 1, 'assets/enemy.png', 120),
+      new NPC('Merchant', 'friendly', 450, 2, 'assets/friendly.png'),
+      new NPC('Bandit', 'enemy', 300, 2, 'assets/enemy.png', 150),
+    ];
     
     // DOM references
     this.gameArea = document.getElementById('game-area');
@@ -50,22 +89,16 @@ export default class Game {
     
     // Interval references
     this.passiveRegenInterval = null;
-    this.regenInterval = null;
   }
 
   async initialize() {
-    console.log('Initializing enhanced game...');
+    console.log('Initializing game...');
     
     // Create player
     this.player = new Player(this.config.playerName || 'Artemis');
     
     // Initialize core systems
     this.systems.movement = new MovementSystem(this);
-    
-    // Initialize new systems
-    this.questSystem = new QuestSystem(this);
-    this.zoneSystem = new ZoneSystem(this);
-    this.npcSystem = new NPCSystem(this);
     
     // Create game loop
     this.gameLoop = new GameLoop(
@@ -84,7 +117,7 @@ export default class Game {
     // Start passive regeneration
     this.startPassiveRegen();
     
-    console.log('Enhanced game initialized!');
+    console.log('Game initialized successfully!');
   }
 
   start() {
@@ -118,7 +151,7 @@ export default class Game {
     this.player.events.on('xp:gain', () => this.updateHUD());
     this.player.events.on('levelup', (data) => {
       console.log(`Level up! Now level ${data.level}`);
-      this.questSystem.showNotification(`Level Up! You are now level ${data.level}!`, 'success');
+      this.showNotification(`Level Up! You are now level ${data.level}!`, 'success');
       
       // Update talent point display
       const talentPointsEl = document.getElementById('talent-points');
@@ -128,12 +161,6 @@ export default class Game {
       this.updateHUD();
     });
     this.player.events.on('gold:gain', () => this.updateHUD());
-    
-    // Zone change events
-    this.events.on('zone:change', (data) => {
-      console.log(`Zone changed from ${data.from} to ${data.to}: ${data.zone.name}`);
-      this.paintZone();
-    });
     
     // Dev shortcuts
     document.addEventListener('keypress', (e) => {
@@ -150,6 +177,12 @@ export default class Game {
         }
         
         this.updateHUD();
+        this.showNotification('Debug boost applied! (+100 XP, +50 Gold, +1 Talent Point)', 'success');
+      }
+      
+      // Interact with NPCs (E key)
+      if (e.key === 'e') {
+        this.interactWithNearbyNPC();
       }
     });
     
@@ -169,28 +202,37 @@ export default class Game {
     const sidePanel = document.getElementById('side-panel');
     
     bagBtn?.addEventListener('click', () => {
-      bagWin.classList.toggle('open');
+      console.log('Bag button clicked');
+      bagWin?.classList.toggle('open');
     });
     talentBtn?.addEventListener('click', () => {
-      talentWin.classList.toggle('open');
+      console.log('Talent button clicked');
+      talentWin?.classList.toggle('open');
     });
-    hambBtn?.addEventListener('click', () => sidePanel.classList.toggle('open'));
+    hambBtn?.addEventListener('click', () => sidePanel?.classList.toggle('open'));
   }
 
   // ─── ZONE MANAGEMENT ─────────────────────────
   changeZone(newZoneId) {
-    return this.zoneSystem.changeZone(newZoneId);
+    if (newZoneId >= 0 && newZoneId < this.zones.length) {
+      this.state.currentZone = newZoneId;
+      this.paintZone();
+      console.log(`Changed to zone ${newZoneId}: ${this.zones[newZoneId].name}`);
+      this.showNotification(`Entered: ${this.zones[newZoneId].name}`, 'info');
+      return true;
+    }
+    return false;
   }
 
   paintZone() {
-    const currentZone = this.zoneSystem.getCurrentZone();
-    if (!currentZone) return;
+    const zone = this.zones[this.state.currentZone];
+    if (!zone) return;
     
     // Apply zone background
-    this.gameArea.style.background = currentZone.background;
+    this.gameArea.style.background = zone.backgroundImage;
     this.gameArea.style.backgroundSize = 'cover';
     
-    // Draw NPCs for current zone
+    // Draw NPCs
     this.drawNPCs();
   }
 
@@ -204,51 +246,178 @@ export default class Game {
     
     npcContainer.innerHTML = '';
     
-    const npcsInZone = this.npcSystem.getNPCsInZone(this.state.currentZone);
+    const npcsInZone = this.npcs.filter(npc => npc.zone === this.state.currentZone);
     
     for (const npc of npcsInZone) {
+      // Skip defeated enemies (with respawn chance)
+      if (npc.isEnemy && npc.defeated) {
+        const chance = npc.respawnChance ?? 0.5;
+        if (Math.random() >= chance) continue;
+        npc.defeated = false;
+        npc.hp = npc.maxHp;
+      }
+      
       const el = document.createElement('div');
       el.className = `npc ${npc.type}`;
       el.style.left = npc.x + 'px';
       
-      // Add quest indicators
-      const availableQuests = this.questSystem.getAvailableQuestsForNPC(npc.name);
-      const completableQuests = this.questSystem.getActiveQuestsForNPC(npc.name);
-      
-      if (availableQuests.length > 0) {
-        el.classList.add('has-quest');
-      } else if (completableQuests.length > 0) {
-        el.classList.add('quest-complete');
+      // Add quest indicators for friendly NPCs
+      if (npc.type === 'friendly') {
+        if (npc.name === 'Elder Marcus' && !this.quests['welcome-to-town'].completed) {
+          el.classList.add('has-quest');
+        }
       }
       
       el.innerHTML = `<img src="${npc.img}" /><div class="name">${npc.name}</div>`;
       
-      // Add click handler for dialogue
+      // Add click handler
       el.addEventListener('click', () => {
-        this.npcSystem.startDialogue(npc.id);
+        if (npc.type === 'enemy') {
+          this.startBattle(npc);
+        } else {
+          this.startDialogue(npc);
+        }
       });
       
       npcContainer.appendChild(el);
     }
   }
 
+  interactWithNearbyNPC() {
+    const playerX = this.systems.movement.getPosition();
+    const npcsInZone = this.npcs.filter(npc => npc.zone === this.state.currentZone);
+    
+    for (const npc of npcsInZone) {
+      const distance = Math.abs(npc.x - playerX);
+      if (distance < 80) { // Close enough to interact
+        if (npc.type === 'enemy') {
+          this.startBattle(npc);
+        } else {
+          this.startDialogue(npc);
+        }
+        return;
+      }
+    }
+    
+    this.showNotification('No one nearby to interact with. Get closer to NPCs.', 'info');
+  }
+
   getMaxZones() {
-    return Object.keys(this.zoneSystem.zones).length;
+    return this.zones.length;
+  }
+
+  // ─── SIMPLE DIALOGUE SYSTEM ──────────────────
+  startDialogue(npc) {
+    console.log(`Talking to ${npc.name}`);
+    
+    let message = '';
+    let hasQuest = false;
+    
+    switch (npc.name) {
+      case 'Elder Marcus':
+        if (!this.quests['welcome-to-town'].active && !this.quests['welcome-to-town'].completed) {
+          message = `Welcome to Aldenhaven, ${this.player.name}! We've been having trouble with wolves attacking our livestock. Could you help us by defeating 3 wolves in the plains to the east?`;
+          hasQuest = true;
+        } else if (this.quests['welcome-to-town'].active) {
+          message = `How goes the wolf hunt? We need you to defeat ${this.quests['kill-wolves'].target - this.quests['kill-wolves'].progress} more wolves.`;
+        } else {
+          message = "Thank you for helping our village! You are always welcome here.";
+        }
+        break;
+        
+      case 'Blacksmith':
+        message = "Welcome to my forge! I craft the finest weapons and armor in the land. (Shop coming soon!)";
+        break;
+        
+      case 'Merchant':
+        message = "Greetings, traveler! I have goods from across the realm. (Trading system coming soon!)";
+        break;
+        
+      default:
+        message = npc.getRandomDialogue ? npc.getRandomDialogue() : "Hello there!";
+    }
+    
+    // Show dialogue
+    this.showDialogue(npc.name, message, hasQuest ? 'welcome-to-town' : null);
+  }
+
+  showDialogue(npcName, message, questId = null) {
+    const dialogueDiv = document.createElement('div');
+    dialogueDiv.className = 'simple-dialogue';
+    dialogueDiv.style.cssText = `
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.9);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 600px;
+      text-align: center;
+      z-index: 1000;
+      border: 2px solid #8B6914;
+    `;
+    
+    let html = `
+      <h3>${npcName}</h3>
+      <p>${message}</p>
+      <div style="margin-top: 15px;">
+    `;
+    
+    if (questId) {
+      html += `<button onclick="game.acceptQuest('${questId}')" style="margin-right: 10px; padding: 10px 20px; background: #4CAF50; border: none; border-radius: 5px; color: white; cursor: pointer;">Accept Quest</button>`;
+    }
+    
+    html += `<button onclick="game.closeDialogue()" style="padding: 10px 20px; background: #666; border: none; border-radius: 5px; color: white; cursor: pointer;">Close</button>`;
+    html += `</div>`;
+    
+    dialogueDiv.innerHTML = html;
+    document.body.appendChild(dialogueDiv);
+    
+    // Auto-close after 10 seconds if no quest
+    if (!questId) {
+      setTimeout(() => {
+        if (dialogueDiv.parentNode) {
+          dialogueDiv.remove();
+        }
+      }, 10000);
+    }
+  }
+
+  acceptQuest(questId) {
+    this.quests[questId].active = true;
+    console.log(`Accepted quest: ${questId}`);
+    
+    if (questId === 'welcome-to-town') {
+      this.quests['kill-wolves'].active = true;
+      this.showNotification('Quest accepted: Kill 3 wolves in the plains!', 'success');
+    }
+    
+    this.closeDialogue();
+    this.paintZone(); // Refresh NPCs to remove quest marker
+  }
+
+  closeDialogue() {
+    const dialogues = document.querySelectorAll('.simple-dialogue');
+    dialogues.forEach(d => d.remove());
   }
 
   // ─── BATTLE SYSTEM ───────────────────────────
-  startBattle(enemy) {
+  startBattle(npc) {
     if (this.state.inBattle) return;
     
     this.state.inBattle = true;
     this.systems.movement.stop();
     
-    // Create enemy from zone data
-    const currentZone = this.zoneSystem.getCurrentZone();
-    const enemyName = enemy.name || enemy;
-    const enemyData = this.createEnemyFromZone(enemyName, currentZone);
+    if (!('hp' in npc)) npc.hp = npc.maxHp;
     
-    this.currentEnemy = enemyData;
+    this.currentEnemy = {
+      ...npc,
+      ref: npc,
+      hp: npc.hp,
+      maxHp: npc.maxHp
+    };
     
     // Set up battle UI
     const enemyImg = document.getElementById('battle-enemy-img');
@@ -256,9 +425,9 @@ export default class Game {
     const enemySprite = document.getElementById('battle-enemy-sprite');
     const heroSprite = document.getElementById('battle-hero-sprite');
     
-    if (enemyImg) enemyImg.src = enemyData.img || 'assets/enemy.png';
+    if (enemyImg) enemyImg.src = npc.img || 'assets/enemy.png';
     if (heroImg) heroImg.src = 'assets/player.png';
-    if (enemySprite) enemySprite.src = enemyData.img || 'assets/enemy.png';
+    if (enemySprite) enemySprite.src = npc.img || 'assets/enemy.png';
     if (heroSprite) heroSprite.src = 'assets/player.png';
     
     // Show battle scene
@@ -267,48 +436,14 @@ export default class Game {
     this.battleScene.classList.add('visible');
     this.battleScene.style.display = 'flex';
     
-    console.log('Battle started against:', enemyData.name);
+    console.log('Battle started against:', npc.name);
+    this.showNotification(`Battle started against: ${npc.name}!`, 'warning');
     
     this.updateBattleUI();
     
     // Make battle functions available globally
     window.attackEnemy = () => this.attackEnemy();
     window.fleeBattle = () => this.fleeBattle();
-  }
-
-  createEnemyFromZone(enemyName, zone) {
-    const baseStats = {
-      'Wolf': { hp: 80, attack: 15, defense: 5, xp: 30, gold: 10, img: 'assets/wolf.png' },
-      'Bandit Scout': { hp: 120, attack: 20, defense: 8, xp: 50, gold: 20, img: 'assets/bandit.png' },
-      'Bandit': { hp: 180, attack: 25, defense: 12, xp: 75, gold: 35, img: 'assets/bandit.png' },
-      'Highway Robber': { hp: 220, attack: 30, defense: 15, xp: 100, gold: 50, img: 'assets/robber.png' },
-      'Forest Spider': { hp: 150, attack: 22, defense: 8, xp: 60, gold: 15, img: 'assets/spider.png' },
-      'Wild Boar': { hp: 200, attack: 28, defense: 18, xp: 80, gold: 25, img: 'assets/boar.png' },
-      'Corrupted Wolf': { hp: 250, attack: 35, defense: 20, xp: 120, gold: 40, img: 'assets/corrupted-wolf.png' },
-      'Corrupted Treant': { hp: 800, attack: 60, defense: 40, xp: 500, gold: 200, img: 'assets/treant.png' },
-      'Crystal Spider': { hp: 300, attack: 40, defense: 25, xp: 150, gold: 60, img: 'assets/crystal-spider.png' },
-      'Cave Troll': { hp: 600, attack: 55, defense: 35, xp: 300, gold: 120, img: 'assets/troll.png' },
-      'Shadow Wraith': { hp: 400, attack: 50, defense: 15, xp: 200, gold: 80, img: 'assets/wraith.png' },
-      'Orc Warrior': { hp: 500, attack: 45, defense: 30, xp: 250, gold: 100, img: 'assets/orc.png' },
-      'Orc Chieftain': { hp: 1200, attack: 80, defense: 50, xp: 800, gold: 400, img: 'assets/orc-chief.png' },
-      'Ancient Dragon': { hp: 3000, attack: 120, defense: 80, xp: 2000, gold: 1000, img: 'assets/dragon.png' }
-    };
-    
-    const stats = baseStats[enemyName] || baseStats['Wolf'];
-    
-    // Scale stats based on zone level
-    const levelMultiplier = 1 + (zone.levelRange[0] - 1) * 0.1;
-    
-    return {
-      name: enemyName,
-      maxHp: Math.floor(stats.hp * levelMultiplier),
-      hp: Math.floor(stats.hp * levelMultiplier),
-      attack: Math.floor(stats.attack * levelMultiplier),
-      defense: Math.floor(stats.defense * levelMultiplier),
-      xpReward: Math.floor(stats.xp * levelMultiplier),
-      goldReward: Math.floor(stats.gold * levelMultiplier),
-      img: stats.img
-    };
   }
 
   attackEnemy() {
@@ -320,12 +455,6 @@ export default class Game {
     // Hero attacks
     const { damage, isCrit } = this.player.calculateDamage();
     this.currentEnemy.hp = Math.max(0, this.currentEnemy.hp - damage);
-    
-    // Apply lifesteal
-    if (this.player.lifesteal && damage > 0) {
-      const healAmount = Math.floor(damage * this.player.lifesteal);
-      this.player.heal(healAmount);
-    }
     
     heroSprite?.classList.add('attack');
     this.showDamagePopup(damage, isCrit);
@@ -339,13 +468,7 @@ export default class Game {
     
     // Enemy retaliates
     setTimeout(() => {
-      let enemyDamage = Math.floor(this.currentEnemy.attack * (0.8 + Math.random() * 0.4));
-      
-      // Apply player's damage reduction
-      if (this.player.damageReduction) {
-        enemyDamage = Math.floor(enemyDamage * (1 - this.player.damageReduction));
-      }
-      
+      let enemyDamage = Math.floor(15 + Math.random() * 10);
       const actualDamage = this.player.takeDamage(enemyDamage);
       
       enemySprite?.classList.add('attack');
@@ -363,7 +486,7 @@ export default class Game {
   }
 
   fleeBattle() {
-    this.questSystem.showNotification('You fled from battle!', 'warning');
+    this.showNotification('You fled from battle!', 'warning');
     this.endBattle(false);
   }
 
@@ -374,34 +497,36 @@ export default class Game {
     
     if (won && this.currentEnemy) {
       // Give rewards
-      const xpReward = this.currentEnemy.xpReward;
-      const goldReward = this.currentEnemy.goldReward;
+      const xpReward = 50;
+      const goldReward = 20;
       
       this.player.addXp(xpReward);
       this.player.addGold(goldReward);
       
-      this.questSystem.showNotification(
-        `Victory! +${xpReward} XP, +${goldReward} Gold`, 
-        'success'
-      );
+      this.showNotification(`Victory! +${xpReward} XP, +${goldReward} Gold`, 'success');
       
-      // Trigger quest objectives
-      this.questSystem.onEnemyKilled(this.currentEnemy.name);
-      
-      // Check for special zone events
-      if (this.currentEnemy.name === 'Ancient Dragon') {
-        this.zoneSystem.triggerZoneEvent('boss-defeated');
+      // Update quest progress
+      if (this.quests['kill-wolves'].active && this.currentEnemy.name === 'Wolf') {
+        this.quests['kill-wolves'].progress++;
+        this.showNotification(`Wolves killed: ${this.quests['kill-wolves'].progress}/${this.quests['kill-wolves'].target}`, 'info');
+        
+        if (this.quests['kill-wolves'].progress >= this.quests['kill-wolves'].target) {
+          this.quests['kill-wolves'].completed = true;
+          this.quests['welcome-to-town'].completed = true;
+          this.showNotification('Quest completed! Return to Elder Marcus for your reward!', 'success');
+        }
       }
-    } else if (!won) {
+      
+      if (this.currentEnemy.ref) {
+        this.currentEnemy.ref.defeated = true;
+      }
+    } else if (!won && this.player.stats.hp <= 0) {
       // Handle defeat
-      if (this.player.stats.hp <= 0) {
-        this.questSystem.showNotification('You have been defeated! Returning to village...', 'warning');
-        this.state.currentZone = 0;
-        this.zoneSystem.currentZone = 0;
-        this.systems.movement.setPosition(100);
-        this.player.stats.hp = Math.floor(this.player.stats.maxHp * 0.5); // Revive with half HP
-        this.paintZone();
-      }
+      this.showNotification('You have been defeated! Returning to village...', 'warning');
+      this.state.currentZone = 0;
+      this.systems.movement.setPosition(100);
+      this.player.stats.hp = Math.floor(this.player.stats.maxHp * 0.5);
+      this.paintZone();
     }
     
     this.state.inBattle = false;
@@ -451,26 +576,46 @@ export default class Game {
     setTimeout(() => popup.classList.add('hidden'), 800);
   }
 
-  // ─── MOVEMENT & COLLISION ────────────────────
-  checkNPCCollisions(playerX) {
-    // Check for NPC dialogue interactions
-    const npc = this.npcSystem.checkNPCInteraction(playerX, this.state.currentZone);
-    if (npc) {
-      // Show interaction prompt or auto-start dialogue
-      return npc;
+  // ─── TALENT SYSTEM ───────────────────────────
+  spendTalentPoint(type) {
+    console.log('Spending talent point:', type);
+    
+    if (this.player.talentPoints <= 0) {
+      console.log('No talent points available');
+      this.showNotification('No talent points available!', 'warning');
+      return;
     }
     
-    // Check for enemy encounters (random encounters in dangerous zones)
-    const currentZone = this.zoneSystem.getCurrentZone();
-    if (currentZone.type === 'dangerous' && Math.random() < 0.01) { // 1% chance per frame
-      const enemies = this.zoneSystem.getZoneEnemies(this.state.currentZone);
-      if (enemies.length > 0) {
-        const randomEnemy = enemies[Math.floor(Math.random() * enemies.length)];
-        this.startBattle(randomEnemy);
-      }
+    this.player.talentPoints--;
+    
+    switch(type) {
+      case 'attack':
+        this.player.stats.attack += 5;
+        this.showNotification('Attack increased by 5!', 'success');
+        break;
+      case 'health':
+        this.player.stats.maxHp += 20;
+        this.player.stats.hp += 20;
+        this.showNotification('Max HP increased by 20!', 'success');
+        break;
+      case 'crit':
+        this.player.stats.critChance += 0.05;
+        this.showNotification('Crit chance increased by 5%!', 'success');
+        break;
+      default:
+        this.player.talentPoints++; // Refund if invalid
+        console.log('Unknown talent type');
+        return;
     }
     
-    return null;
+    // Update displays
+    const talentPointsEl = document.getElementById('talent-points');
+    if (talentPointsEl) {
+      talentPointsEl.textContent = this.player.talentPoints;
+    }
+    
+    this.updateHUD();
+    console.log(`Talent improved: ${type}`);
   }
 
   // ─── HUD MANAGEMENT ──────────────────────────
@@ -495,15 +640,50 @@ export default class Game {
     // Update stats display
     const statsDisplay = document.getElementById('stats-display');
     if (statsDisplay) {
+      const currentZone = this.zones[this.state.currentZone]?.name || 'Unknown';
+      
       statsDisplay.innerHTML = `
         <div>Attack: ${Math.floor(player.stats.attack)}</div>
         <div>Defense: ${Math.floor(player.stats.defense)}</div>
         <div>Crit: ${Math.floor(player.stats.critChance * 100)}%</div>
         <div>Max HP: ${player.stats.maxHp}</div>
         <div>Max MP: ${player.stats.maxMp}</div>
-        <div>Zone: ${this.zoneSystem.getCurrentZone().name}</div>
+        <div>Zone: ${currentZone}</div>
+        <div>Talent Points: ${player.talentPoints}</div>
       `;
     }
+  }
+
+  // ─── NOTIFICATION SYSTEM ─────────────────────
+  showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `game-notification ${type}`;
+    notification.textContent = message;
+    notification.style.cssText = `
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      background: rgba(0,0,0,0.9);
+      color: white;
+      padding: 15px 20px;
+      border-radius: 5px;
+      z-index: 1000;
+      max-width: 350px;
+      border-left: 4px solid ${type === 'success' ? '#4CAF50' : type === 'warning' ? '#FF9800' : type === 'error' ? '#F44336' : '#2196F3'};
+      animation: slideInRight 0.3s ease;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 4 seconds
+    setTimeout(() => {
+      notification.style.animation = 'slideOutRight 0.3s ease';
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.remove();
+        }
+      }, 300);
+    }, 4000);
   }
 
   // ─── REGENERATION ────────────────────────────
@@ -514,25 +694,11 @@ export default class Game {
       // Only regen when not in battle
       if (!this.state.inBattle && this.player.stats.hp < this.player.stats.maxHp) {
         // Base regen: 2% of max HP per second
-        let regenAmount = Math.ceil(this.player.stats.maxHp * 0.02);
-        
-        // Add talent regen bonus
-        if (this.player.regen) {
-          regenAmount += this.player.regen;
-        }
-        
+        const regenAmount = Math.ceil(this.player.stats.maxHp * 0.02);
         this.player.heal(regenAmount);
         this.updateHUD();
       }
     }, 1000);
-  }
-
-  // ─── MERCHANT SYSTEM ─────────────────────────
-  openMerchant(npc) {
-    console.log('Opening merchant for:', npc.name);
-    // This would integrate with the existing merchant system
-    // For now, just show a message
-    this.questSystem.showNotification(`${npc.name}'s shop - Coming soon!`, 'info');
   }
 
   // ─── UTILITY METHODS ─────────────────────────
@@ -546,76 +712,56 @@ export default class Game {
     return {
       fps: this.gameLoop ? this.gameLoop.getFPS() : 0,
       zone: this.state.currentZone,
-      zoneName: this.zoneSystem.getCurrentZone().name,
+      zoneName: this.zones[this.state.currentZone]?.name || 'Unknown',
       playerPos: this.systems.movement ? this.systems.movement.getPosition() : 0,
       playerLevel: this.player ? this.player.level : 1,
       gameTime: Math.floor(this.state.gameTime),
-      activeQuests: Object.values(this.questSystem.questStates).filter(state => state === 'active').length
+      talentPoints: this.player ? this.player.talentPoints : 0
     };
-  }
-
-  // ─── SAVE/LOAD SYSTEM ────────────────────────
-  saveGame() {
-    const saveData = {
-      player: this.player.serialize(),
-      currentZone: this.state.currentZone,
-      gameTime: this.state.gameTime,
-      discoveredZones: Array.from(this.zoneSystem.discoveredZones),
-      questStates: this.questSystem.questStates,
-      questObjectives: {}
-    };
-    
-    // Save quest objective progress
-    Object.values(this.questSystem.questDatabase).forEach(quest => {
-      saveData.questObjectives[quest.id] = quest.objectives;
-    });
-    
-    localStorage.setItem('epicAdventureGame_save', JSON.stringify(saveData));
-    this.questSystem.showNotification('Game saved!', 'success');
-    
-    return saveData;
-  }
-
-  loadGame() {
-    try {
-      const saveData = JSON.parse(localStorage.getItem('epicAdventureGame_save'));
-      if (!saveData) {
-        this.questSystem.showNotification('No save data found!', 'warning');
-        return false;
-      }
-      
-      // Load player data
-      this.player.deserialize(saveData.player);
-      
-      // Load world state
-      this.state.currentZone = saveData.currentZone;
-      this.state.gameTime = saveData.gameTime;
-      this.zoneSystem.currentZone = saveData.currentZone;
-      this.zoneSystem.discoveredZones = new Set(saveData.discoveredZones);
-      
-      // Load quest states
-      this.questSystem.questStates = saveData.questStates;
-      if (saveData.questObjectives) {
-        Object.entries(saveData.questObjectives).forEach(([questId, objectives]) => {
-          if (this.questSystem.questDatabase[questId]) {
-            this.questSystem.questDatabase[questId].objectives = objectives;
-          }
-        });
-      }
-      
-      // Update displays
-      this.paintZone();
-      this.updateHUD();
-      this.questSystem.updateQuestLog();
-      this.zoneSystem.updateMinimap();
-      
-      this.questSystem.showNotification('Game loaded!', 'success');
-      return true;
-      
-    } catch (error) {
-      console.error('Failed to load game:', error);
-      this.questSystem.showNotification('Failed to load save data!', 'warning');
-      return false;
-    }
   }
 }
+
+// Make game functions globally available for HTML onclick handlers
+window.spendTalentPoint = (type) => {
+  console.log('Global spendTalentPoint called with:', type);
+  if (window.game && window.game.spendTalentPoint) {
+    window.game.spendTalentPoint(type);
+  } else {
+    console.error('Game instance not found or spendTalentPoint method missing');
+  }
+};
+
+// Add CSS for animations
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes slideOutRight {
+    to { transform: translateX(100%); opacity: 0; }
+  }
+  .has-quest::after {
+    content: "!";
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #FFD700;
+    color: #000;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: translateX(-50%) scale(1); }
+    50% { transform: translateX(-50%) scale(1.1); }
+  }
+`;
+document.head.appendChild(style);

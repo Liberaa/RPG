@@ -82,36 +82,37 @@
 
     <!-- ── Talents (just above bag) ── -->
     <button id="talent-btn">✨</button>
-    <div id="talent-window" class="panel">
-      <h3>Talents</h3>
-      <div class="talent-points">Points Available: <span id="talent-points">0</span></div>
-      <div class="simple-talents">
-        <div class="talent-item">
-          <span>⚔️</span>
-          <div>
-            <strong>Attack Boost</strong>
-            <div>+5 Attack per point</div>
-            <button onclick="game.spendTalentPoint('attack')">Learn</button>
-          </div>
-        </div>
-        <div class="talent-item">
-          <span>❤️</span>
-          <div>
-            <strong>Health Boost</strong>
-            <div>+20 HP per point</div>
-            <button onclick="game.spendTalentPoint('health')">Learn</button>
-          </div>
-        </div>
-        <div class="talent-item">
-          <span>💥</span>
-          <div>
-            <strong>Critical Boost</strong>
-            <div>+5% Crit per point</div>
-            <button onclick="game.spendTalentPoint('crit')">Learn</button>
-          </div>
-        </div>
+    <!-- Replace the talent section in your index.html with this -->
+<div id="talent-window" class="panel">
+  <h3>Talents</h3>
+  <div class="talent-points">Points Available: <span id="talent-points">0</span></div>
+  <div class="simple-talents">
+    <div class="talent-item">
+      <span>⚔️</span>
+      <div>
+        <strong>Attack Boost</strong>
+        <div>+5 Attack per point</div>
+        <button onclick="window.spendTalentPoint('attack')">Learn</button>
       </div>
     </div>
+    <div class="talent-item">
+      <span>❤️</span>
+      <div>
+        <strong>Health Boost</strong>
+        <div>+20 HP per point</div>
+        <button onclick="window.spendTalentPoint('health')">Learn</button>
+      </div>
+    </div>
+    <div class="talent-item">
+      <span>💥</span>
+      <div>
+        <strong>Critical Boost</strong>
+        <div>+5% Crit per point</div>
+        <button onclick="window.spendTalentPoint('crit')">Learn</button>
+      </div>
+    </div>
+  </div>
+</div>
 
   </div><!-- /game-area -->
 

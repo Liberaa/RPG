@@ -1,4 +1,6 @@
 // src/systems/MovementSystem.js - Fixed movement with zone integration
+import NPC from '../entities/NPC.js';
+
 export default class MovementSystem {
   constructor(game) {
     this.game = game;
@@ -52,10 +54,17 @@ export default class MovementSystem {
     }
 
     let newX = this.x;
+    let isMoving = false;
     
     // Calculate movement
-    if (this.leftHeld) newX -= this.speed * deltaTime;
-    if (this.rightHeld) newX += this.speed * deltaTime;
+    if (this.leftHeld) {
+      newX -= this.speed * deltaTime;
+      isMoving = true;
+    }
+    if (this.rightHeld) {
+      newX += this.speed * deltaTime;
+      isMoving = true;
+    }
 
     // Check zone boundaries
     if (newX < 0) {
@@ -91,31 +100,47 @@ export default class MovementSystem {
 
     this.x = newX;
     
-    // Check collisions with NPCs or trigger random encounters
-    this.checkInteractions();
+    // Only check collisions when actually moving
+    if (isMoving) {
+      this.checkInteractions();
+    }
   }
 
   checkInteractions() {
-    // Check for NPC interactions (if NPC system exists)
-    if (this.game.npcSystem) {
-      const npc = this.game.npcSystem.checkNPCInteraction(this.x, this.game.state.currentZone);
-      if (npc) {
-        // Show interaction hint or auto-interact
-        console.log(`Near NPC: ${npc.name}`);
+    // Check for collisions with NPCs
+    const playerX = this.x + this.spriteWidth / 2; // Center of player
+    const npcsInZone = this.game.npcs.filter(npc => npc.zone === this.game.state.currentZone);
+    
+    for (const npc of npcsInZone) {
+      // Skip defeated enemies
+      if (npc.defeated) continue;
+      
+      const npcCenterX = npc.x + 125; // Center of NPC (assuming 250px width)
+      const distance = Math.abs(playerX - npcCenterX);
+      
+      // Collision distance threshold
+      if (distance < 80) {
+        if (npc.type === 'enemy' && !this.game.state.inBattle) {
+          console.log(`Collision with enemy: ${npc.name}`);
+          this.game.startBattle(npc);
+          return; // Stop checking after starting battle
+        }
       }
     }
     
-    // Check for random encounters in dangerous zones
+    // Check for random encounters in dangerous zones (reduced chance)
     if (this.game.zoneSystem) {
       const currentZone = this.game.zoneSystem.getCurrentZone();
       if (currentZone && (currentZone.type === 'dangerous' || currentZone.type === 'hostile')) {
-        // Random encounter chance
-        if (Math.random() < 0.005) { // 0.5% chance per frame when moving
+        // Random encounter chance (much lower to not be annoying)
+        if (Math.random() < 0.001) { // 0.1% chance per frame when moving
           const enemies = this.game.zoneSystem.getZoneEnemies(this.game.state.currentZone);
           if (enemies.length > 0) {
             const randomEnemy = enemies[Math.floor(Math.random() * enemies.length)];
             console.log(`Random encounter: ${randomEnemy}`);
-            this.game.startBattle(randomEnemy);
+            // Create a temporary NPC for the random encounter
+            const tempEnemy = new NPC(randomEnemy, 'enemy', this.x, this.game.state.currentZone, 'assets/enemy.png', 100);
+            this.game.startBattle(tempEnemy);
           }
         }
       }
