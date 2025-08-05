@@ -23,7 +23,8 @@ export default class MovementSystem {
   setupControls() {
     document.addEventListener('keydown', (e) => {
       // Don't move during dialogue or battles
-      if (this.game.state.inBattle || this.game.npcSystem?.currentDialogue) {
+      if (this.game.state.inBattle || 
+          (this.game.npcSystem && this.game.npcSystem.currentDialogue)) {
         return;
       }
       
@@ -128,12 +129,12 @@ export default class MovementSystem {
       }
     }
     
-    // Check for random encounters in dangerous zones (reduced chance)
+    // Reduced random encounters
     if (this.game.zoneSystem) {
       const currentZone = this.game.zoneSystem.getCurrentZone();
       if (currentZone && (currentZone.type === 'dangerous' || currentZone.type === 'hostile')) {
-        // Random encounter chance (much lower to not be annoying)
-        if (Math.random() < 0.001) { // 0.1% chance per frame when moving
+        // Very low random encounter chance
+        if (Math.random() < 0.0005) { // 0.05% chance per frame when moving
           const enemies = this.game.zoneSystem.getZoneEnemies(this.game.state.currentZone);
           if (enemies.length > 0) {
             const randomEnemy = enemies[Math.floor(Math.random() * enemies.length)];

@@ -59,7 +59,9 @@
         <div class="debug-info">
           <small>Debug Mode: ON</small>
           <small>Press K for XP/Gold/Talent</small>
-          <small>ESC to pause</small>
+          <small>Press E to interact with NPCs</small>
+          <small>Press ESC to pause</small>
+          <small>Press F3 for debug panel</small>
         </div>
       </div>
     </aside>
@@ -70,8 +72,13 @@
       <div id="char-name">Artemis</div>
     </div>
 
-    <!-- ── Bag (bottom-right) ── -->
+    <!-- ── Bottom Right UI Buttons ── -->
+    <button id="quest-btn">📜</button>
+    <button id="map-btn">🗺️</button>
+    <button id="talent-btn">✨</button>
     <button id="bag-btn">🎒</button>
+
+    <!-- ── Bag Window ── -->
     <div id="bag-window" class="panel">
       <div class="bag-header">
         <strong>Inventory</strong>
@@ -80,39 +87,16 @@
       <div id="bag-grid"></div>
     </div>
 
-    <!-- ── Talents (just above bag) ── -->
-    <button id="talent-btn">✨</button>
-    <!-- Replace the talent section in your index.html with this -->
-<div id="talent-window" class="panel">
-  <h3>Talents</h3>
-  <div class="talent-points">Points Available: <span id="talent-points">0</span></div>
-  <div class="simple-talents">
-    <div class="talent-item">
-      <span>⚔️</span>
-      <div>
-        <strong>Attack Boost</strong>
-        <div>+5 Attack per point</div>
-        <button onclick="window.spendTalentPoint('attack')">Learn</button>
+    <!-- ── Talent Window ── -->
+    <div id="talent-window" class="panel">
+      <div class="talent-header">
+        <h3>Talents</h3>
+        <div class="talent-points">Points: <span id="talent-points">0</span></div>
+      </div>
+      <div class="simple-talent-list">
+        <!-- Talent content will be populated by SimpleTalentSystem -->
       </div>
     </div>
-    <div class="talent-item">
-      <span>❤️</span>
-      <div>
-        <strong>Health Boost</strong>
-        <div>+20 HP per point</div>
-        <button onclick="window.spendTalentPoint('health')">Learn</button>
-      </div>
-    </div>
-    <div class="talent-item">
-      <span>💥</span>
-      <div>
-        <strong>Critical Boost</strong>
-        <div>+5% Crit per point</div>
-        <button onclick="window.spendTalentPoint('crit')">Learn</button>
-      </div>
-    </div>
-  </div>
-</div>
 
   </div><!-- /game-area -->
 
@@ -164,7 +148,7 @@
   <!-- ─────────────── ERROR DISPLAY ─────────────── -->
   <div id="error-message" class="error-message" style="display: none;"></div>
 
-  <!-- Main JavaScript Entry Point - Changed from script.js -->
+  <!-- Main JavaScript Entry Point -->
   <script type="module" src="main.js"></script>
 </body>
 </html>
